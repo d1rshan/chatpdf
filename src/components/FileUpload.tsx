@@ -4,10 +4,12 @@ import { UploadDropzone } from "@/lib/uploadthing";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 
 // https://github.com/aws/aws-sdk-js-v3/issues/4126
 
 const FileUpload = () => {
+  const router = useRouter();
   const { mutate } = useMutation({
     mutationFn: async ({
       file_key,
@@ -22,11 +24,14 @@ const FileUpload = () => {
       });
       return response.data;
     },
-    onSuccess: (data) => {
-      console.log("data", data);
+    onSuccess: ({ chat_id }) => {
+      console.log("data", chat_id);
+      toast.success("Chat created successfully");
+      // router.push(`/chat/${chat_id}`);
     },
     onError: (error) => {
       console.log("error", error);
+      toast.error("Error creating chat");
     },
   });
   return (
