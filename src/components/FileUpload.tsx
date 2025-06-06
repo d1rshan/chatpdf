@@ -1,64 +1,55 @@
 "use client";
-// import { uploadToS3 } from "@/lib/s3";
-// import { useMutation } from "@tanstack/react-query";
-import { Inbox, Loader2 } from "lucide-react";
-import React, { useState } from "react";
-import { useDropzone } from "react-dropzone";
-// import axios from "axios";
-// import { toast } from "react-hot-toast";
-import { useRouter } from "next/navigation";
-import { UploadButton } from "@/lib/uploadthing";
-import type { OurFileRouter } from "@/app/api/uploadthing/core";
+
+import { UploadDropzone } from "@/lib/uploadthing";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "react-hot-toast";
+import axios from "axios";
 
 // https://github.com/aws/aws-sdk-js-v3/issues/4126
 
 const FileUpload = () => {
-  const [isUploading, setIsUploading] = useState(false);
-  const router = useRouter();
-
-  const { getRootProps, getInputProps } = useDropzone({
-    accept: { "application/pdf": [".pdf"] },
-    maxFiles: 1,
-    onDrop: async (acceptedFiles) => {
-      try {
-        setIsUploading(true);
-        // The actual upload will be handled by UploadButton
-        console.log("Files dropped:", acceptedFiles);
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setIsUploading(false);
-      }
+  const { mutate } = useMutation({
+    mutationFn: async ({
+      file_key,
+      file_name,
+    }: {
+      file_key: string;
+      file_name: string;
+    }) => {
+      const response = await axios.post("/api/create-chat", {
+        file_key,
+        file_name,
+      });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      console.log("data", data);
+    },
+    onError: (error) => {
+      console.log("error", error);
     },
   });
-
   return (
     <div className="p-2 bg-white rounded-xl">
-      <div
-        {...getRootProps({
-          className:
-            "border-dashed border-2 rounded-xl cursor-pointer bg-gray-50 py-8 flex justify-center items-center flex-col",
-        })}
-      >
-        <input {...getInputProps()} />
-        <UploadButton
-          endpoint="pdfUploader"
-          onClientUploadComplete={() => {
-            router.refresh();
-          }}
-        />
-
-        <>
-          {isUploading ? (
-            <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-          ) : (
-            <Inbox className="w-10 h-10 text-blue-500" />
-          )}
-          <p className="mt-2 text-sm text-slate-600">
-            {isUploading ? "Uploading..." : "Drop PDF Here"}
-          </p>
-        </>
-      </div>
+      <UploadDropzone
+        endpoint="pdfUploader"
+        onClientUploadComplete={(res) => {
+          console.log("Files: ", res);
+          if (!res[0]?.key || !res[0]?.name) {
+            toast.error("Something went wrong");
+            return;
+          }
+          mutate({
+            file_key: res[0].key,
+            file_name: res[0].name,
+          });
+          toast.success("Upload Completed");
+        }}
+        onUploadError={(error: Error) => {
+          // Do something with the error.
+          toast.error(`ERROR! ${error.message}`);
+        }}
+      />
     </div>
   );
 };

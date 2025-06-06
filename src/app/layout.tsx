@@ -3,7 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import Providers from "@/components/Providers";
-// import "@uploadthing/react/styles.css";
+import "@uploadthing/react/styles.css";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -25,6 +26,7 @@ export default function RootLayout({
       <Providers>
         <html lang="en">
           <body className={`${inter.variable} antialiased`}>{children}</body>
+          <Toaster />
         </html>
       </Providers>
     </ClerkProvider>
