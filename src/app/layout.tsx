@@ -25,8 +25,11 @@ export default function RootLayout({
     <ClerkProvider>
       <Providers>
         <html lang="en">
-          <body className={`${inter.variable} antialiased`}>{children}</body>
-          <Toaster />
+          <body className={`${inter.variable} antialiased`}>
+            {children}
+
+            <Toaster />
+          </body>
         </html>
       </Providers>
     </ClerkProvider>

@@ -1,7 +1,6 @@
 import {
     generateUploadButton,
     generateUploadDropzone,
-    generateUploader
   } from "@uploadthing/react";
   
   import type { OurFileRouter } from "@/app/api/uploadthing/core";

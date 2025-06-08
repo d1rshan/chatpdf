@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 
 const f = createUploadthing();
 
-// const auth = (req: Request) => ({ id: "fakeId" }); // Fake auth function
+
 
 // FileRouter for your app, can contain multiple FileRoutes
 export const ourFileRouter = {
@@ -16,7 +16,7 @@ export const ourFileRouter = {
     },
   })
     // Set permissions and file types for this FileRoute
-    .middleware(async ({ req }) => {
+    .middleware(async () => {
       // This code runs on your server before upload
       const {userId} = await auth();
 
