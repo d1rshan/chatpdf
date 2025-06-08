@@ -1,12 +1,15 @@
-import { streamText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import { NextResponse } from 'next/server';
-// import { getContext } from '@/lib/context';
-import { db } from '@/lib/db';
-import { chats, messages as _messages } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { OpenAI } from "openai";
+import { Message } from "ai";
+import { getContext } from "@/lib/context";
+import { db } from "@/lib/db";
+import { chats, messages as _messages } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
 
-export const runtime = 'edge';
+// Initialize official OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function POST(req: Request) {
   try {
@@ -14,58 +17,63 @@ export async function POST(req: Request) {
 
     const _chats = await db.select().from(chats).where(eq(chats.id, chatId));
     if (_chats.length !== 1) {
-      return NextResponse.json({ error: 'chat not found' }, { status: 404 });
+      return NextResponse.json({ error: "chat not found" }, { status: 404 });
     }
 
     const fileKey = _chats[0].fileKey;
     const lastMessage = messages[messages.length - 1];
+    console.log(lastMessage.content);
+    const context = await getContext(lastMessage.content, fileKey);
+    // console.log(context);
 
-    // const context = await getContext(lastMessage.content, fileKey);
+    const systemPrompt = {
+      role: "system",
+      content: `AI assistant is a brand new, powerful, human-like artificial intelligence.
+The traits of AI include expert knowledge, helpfulness, cleverness, and articulateness.
+AI is a well-behaved and well-mannered individual.
+AI is always friendly, kind, and inspiring, and he is eager to provide vivid and thoughtful responses to the user.
+AI has the sum of all knowledge in their brain, and is able to accurately answer nearly any question about any topic in conversation.
+AI assistant is a big fan of Pinecone and Vercel.
+START CONTEXT BLOCK
+${context}
+END OF CONTEXT BLOCK
+AI assistant will take into account any CONTEXT BLOCK that is provided in a conversation.
+If the context does not provide the answer to question, the AI assistant will say, "I'm sorry, but I don't know the answer to that question".
+AI assistant will not apologize for previous responses, but instead will indicate new information was gained.
+AI assistant will not invent anything that is not drawn directly from the context.
+`,
+    };
 
-//     const systemPrompt = `
-// AI assistant is a brand new, powerful, human-like artificial intelligence.
-// The traits of AI include expert knowledge, helpfulness, cleverness, and articulateness.
-// AI is a well-behaved and well-mannered individual.
-// AI is always friendly, kind, and inspiring, and he is eager to provide vivid and thoughtful responses to the user.
-// AI has the sum of all knowledge in their brain, and is able to accurately answer nearly any question about any topic in conversation.
-// AI assistant is a big fan of Pinecone and Vercel.
-// START CONTEXT BLOCK
-// ${context}
-// END OF CONTEXT BLOCK
-// AI assistant will take into account any CONTEXT BLOCK that is provided in a conversation.
-// If the context does not provide the answer to question, the AI assistant will say, "I'm sorry, but I don't know the answer to that question".
-// AI assistant will not apologize for previous responses, but instead will indicate new information was gained.
-// AI assistant will not invent anything that is not drawn directly from the context.
-// `;
-
-const systemPrompt = `what is capital of india`;
-
-    // Save user message to database
-    // await db.insert(_messages).values({
-    //   chatId,
-    //   content: lastMessage.content,
-    //   role: 'user',
-    // });
-
-    const result =  streamText({
-      model: openai('gpt-3.5-turbo'),
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
       messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages.filter((m: any) => m.role === 'user'),
+        { role: "system", content: "You are a helpful assistant." },
+        { role: "user", content: systemPrompt.content + " " + lastMessage.content },
+        // ...messages.filter((m: Message) => m.role === "user"),
       ],
     });
 
-    // Save AI response to database
-    const response = await result.text;
-    // await db.insert(_messages).values({
-    //   chatId,
-    //   content: response,
-    //   role: 'system',
-    // });
+    const aiReply = completion.choices[0].message.content;
+    console.log(aiReply)
+    // Save user message
+    await db.insert(_messages).values({
+      chatId,
+      content: lastMessage.content,
+      role: "user",
+    });
 
-    return result.toDataStreamResponse();
+    // Save AI reply
+    if (aiReply) {
+      await db.insert(_messages).values({
+        chatId,
+        content: aiReply,
+        role: "system",
+      });
+    }
+
+    return NextResponse.json({ reply: aiReply });
   } catch (error) {
-    console.error('[Chat API Error]', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error("Error in AI chat handler:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

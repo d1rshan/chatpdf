@@ -10,7 +10,7 @@ import { redirect } from "next/navigation";
 import React from "react";
 
 const ChatPage = async ({ params }: { params: { chatId: string } }) => {
-  const { chatId } = params;
+  const chatId = await params.chatId;
   const { userId } = await auth();
   if (!userId) {
     return redirect("/sign-in");

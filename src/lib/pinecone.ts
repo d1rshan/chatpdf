@@ -79,50 +79,50 @@ export const truncateStringByBytes = (str: string, bytes: number) => {
     return new TextDecoder('utf-8').decode(encoder.encode(str).slice(0,bytes))
 }
 
-// async function prepareDocument(page: PDFPage){
-//     let {pageContent,metadata} = page
-//     pageContent = pageContent.replace(/\n/g,"") // to replace all new line characters with empty string
-//     // split the docs
-//     const splitter = new RecursiveCharacterTextSplitter()
-//     const docs = await splitter.splitDocuments([
-//         new Document({
-//             pageContent,
-//             metadata: {
-//                 pageNumber: metadata.loc.pageNumber,
-//                 text: truncateStringByBytes(pageContent, 36000), // pinecone has a limit of 36kb of metadata so to avoid problems with it later we are doing this
-//             }
-//         })
-//     ])
-//     return docs
-// }
-
 // metadata has chunk text (not the entire page text)
+// async function prepareDocument(page: PDFPage) {
+//     let { pageContent, metadata } = page;
+  
+//     // Remove newlines to reduce noise in embeddings
+//     pageContent = pageContent.replace(/\n/g, "");
+  
+//     // Split the full page into smaller semantic chunks
+//     const splitter = new RecursiveCharacterTextSplitter();
+//     const rawChunks = await splitter.splitDocuments([
+//       new Document({
+//         pageContent,
+//         metadata: {}, // start with no metadata to avoid it being copied
+//       }),
+//     ]);
+  
+//     // Now enrich each chunk with unique metadata
+//     const enrichedChunks = rawChunks.map((chunk, idx) => {
+//       return new Document({
+//         pageContent: chunk.pageContent,
+//         metadata: {
+//           pageNumber: metadata.loc.pageNumber,
+//         //   chunkIndex: idx, // Optional but helpful for tracing
+//           text: truncateStringByBytes(chunk.pageContent, 36000), // Pinecone 36KB metadata limit
+//         },
+//       });
+//     });
+  
+//     return enrichedChunks;
+//   }
+
 async function prepareDocument(page: PDFPage) {
-    let { pageContent, metadata } = page;
-  
-    // Remove newlines to reduce noise in embeddings
-    pageContent = pageContent.replace(/\n/g, "");
-  
-    // Split the full page into smaller semantic chunks
-    const splitter = new RecursiveCharacterTextSplitter();
-    const rawChunks = await splitter.splitDocuments([
-      new Document({
-        pageContent,
-        metadata: {}, // start with no metadata to avoid it being copied
-      }),
-    ]);
-  
-    // Now enrich each chunk with unique metadata
-    const enrichedChunks = rawChunks.map((chunk, idx) => {
-      return new Document({
-        pageContent: chunk.pageContent,
-        metadata: {
-          pageNumber: metadata.loc.pageNumber,
-        //   chunkIndex: idx, // Optional but helpful for tracing
-          text: truncateStringByBytes(chunk.pageContent, 36000), // Pinecone 36KB metadata limit
-        },
-      });
-    });
-  
-    return enrichedChunks;
-  }
+  let { pageContent, metadata } = page;
+  pageContent = pageContent.replace(/\n/g, "");
+  // split the docs
+  const splitter = new RecursiveCharacterTextSplitter();
+  const docs = await splitter.splitDocuments([
+    new Document({
+      pageContent,
+      metadata: {
+        pageNumber: metadata.loc.pageNumber,
+        text: truncateStringByBytes(pageContent, 36000),
+      },
+    }),
+  ]);
+  return docs;
+}
