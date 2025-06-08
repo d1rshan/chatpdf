@@ -1,11 +1,11 @@
-import { DrizzleMessage } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
+import { Message } from "ai";
 import { Loader2 } from "lucide-react";
 import React from "react";
 
 type Props = {
   isLoading: boolean;
-  messages: DrizzleMessage[];
+  messages: Message[];
 };
 
 const MessageList = ({ messages, isLoading }: Props) => {
@@ -25,7 +25,7 @@ const MessageList = ({ messages, isLoading }: Props) => {
             key={message.id}
             className={cn("flex", {
               "justify-end pl-10": message.role === "user",
-              "justify-start pr-10": message.role === "system",
+              "justify-start pr-10": message.role === "assistant",
             })}
           >
             <div

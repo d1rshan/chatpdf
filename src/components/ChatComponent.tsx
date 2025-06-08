@@ -1,38 +1,46 @@
 "use client";
-
-import { useState, useEffect } from "react";
-import axios from "axios";
+import React from "react";
 import { Input } from "./ui/input";
+import { useChat } from "@ai-sdk/react";
 import { Button } from "./ui/button";
 import { Send } from "lucide-react";
 import MessageList from "./MessageList";
-import type { DrizzleMessage } from "@/lib/db/schema";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { Message } from "ai";
 
-interface ChatComponentProps {
-  chatId: number;
-}
+type Props = { chatId: number };
 
-export default function ChatComponent({ chatId }: ChatComponentProps) {
-  const [messages, setMessages] = useState<DrizzleMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+const ChatComponent = ({ chatId }: Props) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["chat", chatId],
+    queryFn: async () => {
+      const response = await axios.post<Message[]>("/api/get-messages", {
+        chatId,
+      });
+      return response.data;
+    },
+  });
 
-  useEffect(() => {
-    async function fetchMessages() {
+  const { input, handleInputChange, handleSubmit, messages } = useChat({
+    api: "/api/chat",
+    body: {
+      chatId,
+    },
+    initialMessages: data || [],
+    onFinish: async (message) => {
       try {
-        const response = await axios.post<DrizzleMessage[]>(
-          "/api/get-messages",
-          { chatId }
-        );
-        setMessages(response.data);
+        await axios.post("/api/save-message", {
+          chatId,
+          content: message.content,
+          role: "system",
+        });
       } catch (error) {
-        console.error("Failed to fetch messages:", error);
+        console.error("Failed to save AI message:", error);
       }
-    }
-    fetchMessages();
-  }, [chatId]);
-
-  useEffect(() => {
+    },
+  });
+  React.useEffect(() => {
     const messageContainer = document.getElementById("message-container");
     if (messageContainer) {
       messageContainer.scrollTo({
@@ -41,54 +49,17 @@ export default function ChatComponent({ chatId }: ChatComponentProps) {
       });
     }
   }, [messages]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: DrizzleMessage = {
-      id: Date.now(),
-      chatId,
-      content: input.trim(),
-      role: "user",
-      createdAt: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
-    setInput("");
-
-    try {
-      const response = await axios.post<{ reply: string }>("/api/chat", {
-        messages: [userMessage],
-        chatId,
-      });
-
-      const aiMessage: DrizzleMessage = {
-        id: Date.now() + 1,
-        chatId,
-        content: response.data.reply,
-        role: "system",
-        createdAt: new Date(),
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
-      console.error("Error sending message:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div
       className="relative max-h-screen overflow-scroll"
       id="message-container"
     >
+      {/* header */}
       <div className="sticky top-0 inset-x-0 p-2 bg-white h-fit">
         <h3 className="text-xl font-bold">Chat</h3>
       </div>
 
+      {/* message list */}
       <MessageList messages={messages} isLoading={isLoading} />
 
       <form
@@ -98,20 +69,17 @@ export default function ChatComponent({ chatId }: ChatComponentProps) {
         <div className="flex">
           <Input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             placeholder="Ask any question..."
             className="w-full"
-            disabled={isLoading}
           />
-          <Button
-            type="submit"
-            className="bg-blue-600 ml-2"
-            disabled={isLoading}
-          >
+          <Button className="bg-blue-600 ml-2">
             <Send className="h-4 w-4" />
           </Button>
         </div>
       </form>
     </div>
   );
-}
+};
+
+export default ChatComponent;
